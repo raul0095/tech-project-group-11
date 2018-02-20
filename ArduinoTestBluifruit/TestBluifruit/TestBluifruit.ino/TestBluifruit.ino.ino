@@ -123,17 +123,13 @@ void setup(void) // SEEEEEEEEEEEEEEEEEEEEEEEETTTTTTTTTTTTTTTTTTTTTTTTTUUUUUUUUUU
 /**************************************************************************/
 void loop(void)
 {
-
-
   // Check for user input
   char n, inputs[BUFSIZE + 1];
   //number = ble.read();
   char bt_input[50];
 
   if (Serial.available())
-
   {
-
     n = Serial.readBytes(inputs, BUFSIZE);
     inputs[n] = 0;
     // Send characters to Bluefruit
@@ -151,37 +147,57 @@ void loop(void)
 
   // Read BlueTooth commands
   int i = 0;
+  bool ble_data_received = false;
   while ( ble.available() )
   {
     int c = ble.read();
     bt_input[i++] = c;
     number = c;
     //Serial.print((char)c);
+    ble_data_received = true;
   }
   bt_input[i] = 0;
-  Serial.print(bt_input);
+  //Serial.print("Whole command" + String(bt_input));
 
   // Parse BlueTooth command
-  if (bt_input[0] == 'g' || bt_input[0] == 'G') {
-    if (bt_input[1] == 'h' || bt_input[1] == 'H') {
-      // read humidity sensor here and send data back over bluetooth
-    }
-    else if (bt_input[1] == 't' || bt_input[1] == 'T') {
-      // read temperature sensor here and send data back over bluetooth
-    }
+  if (ble_data_received) {
+    ble_data_received = false;
+    if (bt_input[0] == 'g' || bt_input[0] == 'G') {
+      if (bt_input[1] == 'h' || bt_input[1] == 'H') {
+        // read humidity sensor here and send data back over bluetooth using ble.print()
+      }
+      else if (bt_input[1] == 't' || bt_input[1] == 'T') {
+        // read temperature sensor here and send data back over bluetooth
+      }
+      else {
+        Serial.println("Unknown get command!");
+      }
+    } else if (bt_input[0] == 's' || bt_input[0] == 'S') {
+      Serial.println("Reached S");
+      if (bt_input[1] == 'h' || bt_input[1] == 'H') {
+        Serial.println("Reached H");
+        // set humidity a value and send back over bluetooth
+        String str = String(bt_input);
+        Serial.println("Humidity: " + str);
+        int idx = str.indexOf(' ');
+        Serial.println("Index: " + String(idx));
+        Serial.println("length: " + String(str.length()));
+        Serial.println("substr: " + str.substring(idx+1, str.length()));
+        int humidity = (str.substring(idx+1, str.length())).toInt();
+        Serial.println("Humidity: " + String(humidity));
+      } else if  (bt_input[1] == 't' || bt_input[1] == 'T') {
+        // set temperature and send back over bluetooth
 
-  } else if (bt_input[0] == 's' || bt_input[0] == 'S') {
-    if (bt_input[1] == 'h' || bt_input[1] == 'H') {
-      // set humidity a value and send back over bluetooth
-    } else if  (bt_input[1] == 't' || bt_input[1] == 'T') {
-      // set temperature and send back over bluetooth
-
-    } else if (bt_input[1] == 'l' || bt_input[1] == 'L') {
-      // set the light and send over bluetooth
+      } else if (bt_input[1] == 'l' || bt_input[1] == 'L') {
+        // set the light and send over bluetooth
+      }
+      else {
+        Serial.println("Unknown set command!");
+      }
+    } else {
+      Serial.println("Unknown command!");
     }
   }
-
-
   if (number == 49) {
     digitalWrite(LED, HIGH);
     delay(5000);
