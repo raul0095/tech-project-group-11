@@ -22,7 +22,7 @@
 #define MODE_LED_BEHAVIOUR          "MODE"
 /*=========================================================================*/
 
-
+uint8_t LED = 5; // LED PIN
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 /* ...software SPI, using SCK/MOSI/MISO user-defined SPI pins and then user selected CS/IRQ/RST */
@@ -43,8 +43,15 @@ void error(const __FlashStringHelper*err) {
             automatically on startup)
 */
 /**************************************************************************/
-void setup(void)
+int number;
+int temp;
+int optimal;
+void setup(void) // SEEEEEEEEEEEEEEEEEEEEEEEETTTTTTTTTTTTTTTTTTTTTTTTTUUUUUUUUUUUUUUUUUUUUUUUUUUUPPPPPPPPPPPPPPPPPPPPPPPPPPPP SETUP
 {
+
+  pinMode(LED, OUTPUT); // lED <<<<
+  temp = 14;
+  optimal = 22;
   while (!Serial);  // required for Flora & Micro
   delay(500);
 
@@ -116,11 +123,17 @@ void setup(void)
 /**************************************************************************/
 void loop(void)
 {
+
+
   // Check for user input
   char n, inputs[BUFSIZE + 1];
+  //number = ble.read();
+  char bt_input[50];
 
   if (Serial.available())
+
   {
+
     n = Serial.readBytes(inputs, BUFSIZE);
     inputs[n] = 0;
     // Send characters to Bluefruit
@@ -130,14 +143,78 @@ void loop(void)
     // Send input data to host via Bluefruit
     ble.print(inputs);
   }
+
   if (ble.available()) {
     Serial.print("* "); Serial.print(ble.available()); Serial.println(F(" bytes available from BTLE"));
   }
   // Echo received data
+
+  // Read BlueTooth commands
+  int i = 0;
   while ( ble.available() )
   {
     int c = ble.read();
-    Serial.print((char)c);
+    bt_input[i++] = c;
+    number = c;
+    //Serial.print((char)c);
+  }
+  bt_input[i] = 0;
+  Serial.print(bt_input);
+
+  // Parse BlueTooth command
+  if (bt_input[0] == 'g' || bt_input[0] == 'G') {
+    if (bt_input[1] == 'h' || bt_input[1] == 'H') {
+      // read humidity sensor here and send data back over bluetooth
+    }
+    else if (bt_input[1] == 't' || bt_input[1] == 'T') {
+      // read temperature sensor here and send data back over bluetooth
+    }
+
+  } else if (bt_input[0] == 's' || bt_input[0] == 'S') {
+    if (bt_input[1] == 'h' || bt_input[1] == 'H') {
+      // set humidity a value and send back over bluetooth
+    } else if  (bt_input[1] == 't' || bt_input[1] == 'T') {
+      // set temperature and send back over bluetooth
+
+    } else if (bt_input[1] == 'l' || bt_input[1] == 'L') {
+      // set the light and send over bluetooth
+    }
+  }
+
+
+  if (number == 49) {
+    digitalWrite(LED, HIGH);
+    delay(5000);
+    digitalWrite(LED, LOW);
+    delay(1000);
   }
   delay(1000);
 }
+
+void radiator() {
+
+  if (temp < optimal) {  // checks if it's below or above
+    //  blinkfast();
+    for (int i = optimal - temp; i > 0; i--) {
+      // make the LED blink until it reaches optimal
+    }
+  } // FOLOSESTE WHILE LOOP CA SA FACI O LOGICA ceva gen while nu e optimal fa blinking si
+}
+
+// while (temp !=
+
+
+
+void LEDblink(int rate) {
+
+}
+
+
+// Commands needed
+// set temperature 22
+// get temperature
+// set humidity 45
+// get humidity
+// set rgb FFFFFF
+
+
