@@ -2,6 +2,12 @@
   This is an example based on nRF51822 based Bluefruit LE modules
 
 ********************************************************************/
+#include <Adafruit_NeoPixel.h> // LED RGB library 
+
+#include "DHT.h" // humidity and temperature sensor
+#define DHTPIN 2     // what digital pin we're connected to
+#define DHTTYPE DHT11   // DHT 11
+DHT dht(DHTPIN, DHTTYPE);
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -37,23 +43,24 @@ void error(const __FlashStringHelper*err) {
   while (1);
 }
 
-/**************************************************************************/
-/*!
-    @brief  Sets up the HW an the BLE module (this function is called
-            automatically on startup)
-*/
-/**************************************************************************/
+
 int number;
 int temp;
 int optimal;
 void setup(void) // SEEEEEEEEEEEEEEEEEEEEEEEETTTTTTTTTTTTTTTTTTTTTTTTTUUUUUUUUUUUUUUUUUUUUUUUUUUUPPPPPPPPPPPPPPPPPPPPPPPPPPPP SETUP
 {
+  Serial.begin(115200);
+  dht.begin();
 
-  pinMode(LED, OUTPUT); // lED <<<<
-  temp = 14;
-  optimal = 22;
-  while (!Serial);  // required for Flora & Micro
-  delay(500);
+
+
+
+
+
+  pinMode(LED, OUTPUT); // lED <<<<<<<<<<<<<<<<<<<
+  while (!Serial)  // required for Flora & Micro
+    delay(500);
+
 
   Serial.begin(115200);
   Serial.println(F("Adafruit Bluefruit Command <-> Data Mode Example"));
@@ -116,13 +123,29 @@ void setup(void) // SEEEEEEEEEEEEEEEEEEEEEEEETTTTTTTTTTTTTTTTTTTTTTTTTUUUUUUUUUU
   Serial.println(F("******************************"));
 }
 
-/**************************************************************************/
-/*!
-    @brief  Constantly poll for new command or response data
-*/
-/**************************************************************************/
 void loop(void)
 {
+
+  float h = dht.readHumidity();          // humidity/temperature sensor code
+  float t = dht.readTemperature();
+  float f = dht.readTemperature(true);
+
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(h) || isnan(t) || isnan(f)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+
+  // Compute heat index in Fahrenheit (the default)
+  float hif = dht.computeHeatIndex(f, h);
+  // Compute heat index in Celsius (isFahreheit = false)
+  float hic = dht.computeHeatIndex(t, h, false);         // might be unnecessary code, check and return to it
+
+
+
+
+
+
   // Check for user input
   char n, inputs[BUFSIZE + 1];
   //number = ble.read();
@@ -147,57 +170,82 @@ void loop(void)
 
   // Read BlueTooth commands
   int i = 0;
-  bool ble_data_received = false;
   while ( ble.available() )
   {
     int c = ble.read();
     bt_input[i++] = c;
     number = c;
     //Serial.print((char)c);
-    ble_data_received = true;
   }
   bt_input[i] = 0;
-  //Serial.print("Whole command" + String(bt_input));
+  Serial.print(bt_input);
 
-  // Parse BlueTooth command
-  if (ble_data_received) {
-    ble_data_received = false;
-    if (bt_input[0] == 'g' || bt_input[0] == 'G') {
-      if (bt_input[1] == 'h' || bt_input[1] == 'H') {
-        // read humidity sensor here and send data back over bluetooth using ble.print()
-      }
-      else if (bt_input[1] == 't' || bt_input[1] == 'T') {
-        // read temperature sensor here and send data back over bluetooth
-      }
-      else {
-        Serial.println("Unknown get command!");
-      }
-    } else if (bt_input[0] == 's' || bt_input[0] == 'S') {
-      Serial.println("Reached S");
-      if (bt_input[1] == 'h' || bt_input[1] == 'H') {
-        Serial.println("Reached H");
-        // set humidity a value and send back over bluetooth
-        String str = String(bt_input);
-        Serial.println("Humidity: " + str);
-        int idx = str.indexOf(' ');
-        Serial.println("Index: " + String(idx));
-        Serial.println("length: " + String(str.length()));
-        Serial.println("substr: " + str.substring(idx+1, str.length()));
-        int humidity = (str.substring(idx+1, str.length())).toInt();
-        Serial.println("Humidity: " + String(humidity));
-      } else if  (bt_input[1] == 't' || bt_input[1] == 'T') {
-        // set temperature and send back over bluetooth
+  // Parse BlueTooth command <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+  //ble.print(bt_input);
+  if (bt_input[0] == 'g') { // Gets information and sends to Janis
+    if (bt_input[1] == 'h') {
+      ble.print("SH " + String(h)); // string (h) is the actual readings from the sensors
+      //  Send humidity data back over bluetooth here...
+    }
+    else if (bt_input[1] == 't') {
+      // Read temperature sensor here and send data back over bluetooth
+      ble.print(" ST " + String(t));
+    }
 
-      } else if (bt_input[1] == 'l' || bt_input[1] == 'L') {
-        // set the light and send over bluetooth
-      }
-      else {
-        Serial.println("Unknown set command!");
-      }
-    } else {
-      Serial.println("Unknown command!");
+    else if (bt_input[2] == 'w') {        //recently added to debug the A requests that don`t even reach arduino
+      
+      ble.print("ot 22");
+      delay(2000);
+      ble.print("oh 45");
     }
   }
+
+
+
+  else if (bt_input[0] == 's') { //  Sets info, arduino must put new values
+    if (bt_input[1] == 'h') {                             // humidity
+      // set humidity a value and send back over bluetooth
+      ble.print("SH " + String(bt_input).substring(3));
+
+
+
+    } else if  (bt_input[1] == 't') {                     //temperature
+      // set temperature and send back over bluetooth
+      String strTemp = String(bt_input).substring(3);
+      int tempNow = strTemp.toInt();
+      ble.print("ST " + String(bt_input).substring(3));
+      Serial.print("current temp is " + tempNow);
+
+    } else if (bt_input[1] == 'l') {                     //light
+      // set the light and send over bluetooth
+      ble.print("SL");
+    }
+
+
+  } else if (bt_input[0] == 'a') {    // arduino receives the activity selected and sends back recommended parameters
+    if (bt_input[1] == 'w') { // Working
+      ble.print("ot 22");
+      ble.print("oh 45");
+      //optimal
+    }
+
+    else if (bt_input[1] == 's') { // Sleeping
+      ble.print("ot 18");
+      ble.print("oh ");
+    }
+
+    else if (bt_input[1] == 'b') {  // Baby in the room
+      ble.print("ot ");
+      ble.print("oh ");
+    }
+
+    else if (bt_input[1] == 'e') { // Exercising
+      ble.print("ot ");
+      ble.print("oh ");
+    }
+  }
+
+
   if (number == 49) {
     digitalWrite(LED, HIGH);
     delay(5000);
@@ -211,14 +259,25 @@ void radiator() {
 
   if (temp < optimal) {  // checks if it's below or above
     //  blinkfast();
-    for (int i = optimal - temp; i > 0; i--) {
+    digitalWrite(LED, HIGH);
+    delay(300);
+    digitalWrite(LED, LOW);
+    delay(300);
+    digitalWrite(LED, HIGH);
+    delay(300);
+    digitalWrite(LED, LOW);
+    delay(300);
+
+
+    for (int i = optimal; i > 0; i--) {
       // make the LED blink until it reaches optimal
+      ble.print("ST "  );
     }
-  } // FOLOSESTE WHILE LOOP CA SA FACI O LOGICA ceva gen while nu e optimal fa blinking si
+    //if ( i == 0 ) {
+    digitalWrite(LED, LOW);
+    //}
+  }
 }
-
-// while (temp !=
-
 
 
 void LEDblink(int rate) {
