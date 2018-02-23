@@ -1,6 +1,6 @@
 /*********************************************************************
   This is an example based on nRF51822 based Bluefruit LE modules
-
+jh
 ********************************************************************/
 #include <Adafruit_NeoPixel.h> // LED RGB library 
 
@@ -33,7 +33,8 @@ Servo servoMain;
 #define MODE_LED_BEHAVIOUR          "MODE"
 /*=========================================================================*/
 
-uint8_t LED = 5; // LED PIN
+uint8_t LED = 5; // RED LED PIN
+uint8_t LEDb = 6; // blue LED PIN
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 /* ...software SPI, using SCK/MOSI/MISO user-defined SPI pins and then user selected CS/IRQ/RST */
@@ -51,8 +52,10 @@ void error(const __FlashStringHelper*err) {
 
 int number;
 int temp = 0;
-int optimal = 0;
+int optimalT = 0;
+int optimalH;
 int light = 50;
+int humidity = 0;
 bool rad = false;
 void setup(void) // SEEEEEEEEEEEEEEEEEEEEEEEETTTTTTTTTTTTTTTTTTTTTTTTTUUUUUUUUUUUUUUUUUUUUUUUUUUUPPPPPPPPPPPPPPPPPPPPPPPPPPPP SETUP
 {
@@ -64,10 +67,11 @@ servoMain.attach(10);
   strip.begin(); // RGB LED
   strip.show(); // Initialize all pixels to 'off'
 
-
+servoMain.write(0);
 
 
   pinMode(LED, OUTPUT); // lED <<<<<<<<<<<<<<<<<<<
+  pinMode(LEDb, OUTPUT); // green led
   while (!Serial)  // required for Flora & Micro
     delay(500);
 
@@ -193,35 +197,39 @@ void loop(void)
   // Parse BlueTooth command <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   //ble.print(bt_input);
   if (bt_input[0] == 'g') { // Gets information and sends to Janis
-    if (bt_input[1] == 'h') {
+    if (bt_input[1] == 'r') {
       ble.print("SH " + String(h)); // string (h) is the actual readings from the sensors
-      //  Send humidity data back over bluetooth here...
-    } else if (bt_input[1] == 't') {
-      // Read temperature sensor here and send data back over bluetooth
-      ble.print(" ST " + String(t));
+      delay(200);
+      humidity = int(h);
+      ble.print("ST " + String(int(t)));
+      temp = int(t);
     } else if (bt_input[1] == 'w') {     //working    //recently added to debug the A requests that don`t even reach arduino
       ble.print("ot 22");
-      optimal = 22;
+      optimalT = 22;
       delay(200);
       ble.print("oh 45");
+      optimalH = 45;
       lig(0);
     }  else if (bt_input[1] == 's') { // Sleeping
       ble.print("ot 18");
-      optimal = 18;
+      optimalT = 18;
       delay(200);
       ble.print("oh 45");
+      optimalH = 45;
       lig(100);
     } else if (bt_input[1] == 'b') {  // Baby in the room
       ble.print("ot 23");
-      optimal = 23;
+      optimalT = 23;
       delay(200);
       ble.print("oh 45");
+      optimalH = 45;
       lig(50);
     } else if (bt_input[1] == 'e') { // Exercising
       ble.print("ot 19");
-      optimal = 19;
+      optimalT = 19;
       delay(200);
       ble.print("oh 50");
+      optimalH = 50;
       lig(0);
     }
   } else if (bt_input[0] == 's') { //  Sets info, arduino must put new values
@@ -246,33 +254,55 @@ void loop(void)
   }
 
   radiator();
-  LEDon(rad);
+  humid();
 }
 
 
 void radiator() {
 
-  if (temp < optimal) {  // checks if it's below or above
-    LEDon(true);
+  if (temp < optimalT) {  // checks if it's below or above
+    LEDon(LED,true);
 
-    for (int i = optimal - temp; i > 0; i--) {
+    for (int i = optimalT - temp; i > 0; i--) {
       temp++;
       ble.print("ST "  + String(temp));
 
-      delay(2000);
+      delay(1500);
 
     }
-  } else if (temp > optimal) {
-    LEDon(false);
-
-    for (int i = temp - optimal; i >= 1; i--) {
+     LEDon(LED,false);
+  } else if (temp > optimalT) {
+    LEDon(LED,false);
+    for (int i = temp - optimalT; i >= 1; i--) {
       temp--;
       ble.print("ST " + String(temp));
-      delay(2000);
+      delay(1500);
       servoMain.write(95);
     }
     servoMain.write(0);
-     LEDon(false);
+     LEDon(LED,false);
+  } 
+}
+void humid(){
+   if (humidity < optimalH) {  // checks if it's below or above
+    LEDon(LEDb,true);
+
+    for (int i = optimalH - humidity; i > 0; i--) {
+      humidity++;
+      ble.print("SH "  + String(humidity));
+      delay(500);
+    }
+    LEDon(LEDb,false);
+  } else if (humidity > optimalH) {
+    //LEDon(LEDb,true);
+    for (int i = humidity - optimalH; i >= 1; i--) {
+      humidity--;
+      servoMain.write(95);
+      ble.print("SH " + String(humidity));
+      delay(500);  
+    }   
+    servoMain.write(0);
+     LEDon(LEDb,false);
   } 
 }
 
@@ -288,11 +318,11 @@ void lig(int colors) {
 }
 
 
-void LEDon(bool on) {
+void LEDon(int led, bool on) {
   if (on == true) {
-    digitalWrite(LED, HIGH);
+    digitalWrite(led, HIGH);
   } else {
-    digitalWrite(LED, LOW);
+    digitalWrite(led, LOW);
   }
 }
 
