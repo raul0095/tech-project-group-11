@@ -22,6 +22,9 @@ DHT dht(DHTPIN, DHTTYPE);
 #if SOFTWARE_SERIAL_AVAILABLE
 #include <SoftwareSerial.h>
 #endif
+  
+#include <Servo.h>
+Servo servoMain;
 
 /*=========================================================================
        -----------------------------------------------------------------------*/
@@ -53,6 +56,8 @@ int light = 50;
 bool rad = false;
 void setup(void) // SEEEEEEEEEEEEEEEEEEEEEEEETTTTTTTTTTTTTTTTTTTTTTTTTUUUUUUUUUUUUUUUUUUUUUUUUUUUPPPPPPPPPPPPPPPPPPPPPPPPPPPP SETUP
 {
+servoMain.attach(10);
+  
   Serial.begin(115200);
   dht.begin();
 
@@ -249,7 +254,7 @@ void radiator() {
 
   if (temp < optimal) {  // checks if it's below or above
     LEDon(true);
-    
+
     for (int i = optimal - temp; i > 0; i--) {
       temp++;
       ble.print("ST "  + String(temp));
@@ -257,10 +262,20 @@ void radiator() {
       delay(2000);
 
     }
-  } else {
+  } else if (temp > optimal) {
     LEDon(false);
-  }
+
+    for (int i = temp - optimal; i >= 1; i--) {
+      temp--;
+      ble.print("ST " + String(temp));
+      delay(2000);
+      servoMain.write(95);
+    }
+    servoMain.write(0);
+     LEDon(false);
+  } 
 }
+
 
 void lig(int colors) {
   float r = 1.35;
