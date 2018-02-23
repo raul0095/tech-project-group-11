@@ -5,6 +5,8 @@
 #include <Adafruit_NeoPixel.h> // LED RGB library 
 
 #include "DHT.h" // humidity and temperature sensor
+#define PIN 9 // rgb led
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(1, PIN, NEO_GRB + NEO_KHZ800);  // rgb led
 #define DHTPIN 2     // what digital pin we're connected to
 #define DHTTYPE DHT11   // DHT 11
 DHT dht(DHTPIN, DHTTYPE);
@@ -45,14 +47,17 @@ void error(const __FlashStringHelper*err) {
 
 
 int number;
-int temp;
-int optimal;
+int temp = 0;
+int optimal = 0;
+int light = 50;
+bool rad = false;
 void setup(void) // SEEEEEEEEEEEEEEEEEEEEEEEETTTTTTTTTTTTTTTTTTTTTTTTTUUUUUUUUUUUUUUUUUUUUUUUUUUUPPPPPPPPPPPPPPPPPPPPPPPPPPPP SETUP
 {
   Serial.begin(115200);
   dht.begin();
 
-
+  strip.begin(); // RGB LED
+  strip.show(); // Initialize all pixels to 'off'
 
 
 
@@ -186,103 +191,96 @@ void loop(void)
     if (bt_input[1] == 'h') {
       ble.print("SH " + String(h)); // string (h) is the actual readings from the sensors
       //  Send humidity data back over bluetooth here...
-    }
-    else if (bt_input[1] == 't') {
+    } else if (bt_input[1] == 't') {
       // Read temperature sensor here and send data back over bluetooth
       ble.print(" ST " + String(t));
-    }
-
-    else if (bt_input[2] == 'w') {        //recently added to debug the A requests that don`t even reach arduino
-      
+    } else if (bt_input[1] == 'w') {     //working    //recently added to debug the A requests that don`t even reach arduino
       ble.print("ot 22");
-      delay(2000);
+      optimal = 22;
+      delay(200);
       ble.print("oh 45");
+      lig(0);
+    }  else if (bt_input[1] == 's') { // Sleeping
+      ble.print("ot 18");
+      optimal = 18;
+      delay(200);
+      ble.print("oh 45");
+      lig(100);
+    } else if (bt_input[1] == 'b') {  // Baby in the room
+      ble.print("ot 23");
+      optimal = 23;
+      delay(200);
+      ble.print("oh 45");
+      lig(50);
+    } else if (bt_input[1] == 'e') { // Exercising
+      ble.print("ot 19");
+      optimal = 19;
+      delay(200);
+      ble.print("oh 50");
+      lig(0);
     }
-  }
-
-
-
-  else if (bt_input[0] == 's') { //  Sets info, arduino must put new values
+  } else if (bt_input[0] == 's') { //  Sets info, arduino must put new values
     if (bt_input[1] == 'h') {                             // humidity
       // set humidity a value and send back over bluetooth
       ble.print("SH " + String(bt_input).substring(3));
-
-
-
     } else if  (bt_input[1] == 't') {                     //temperature
       // set temperature and send back over bluetooth
       String strTemp = String(bt_input).substring(3);
       int tempNow = strTemp.toInt();
       ble.print("ST " + String(bt_input).substring(3));
       Serial.print("current temp is " + tempNow);
+      temp = tempNow;
 
     } else if (bt_input[1] == 'l') {                     //light
       // set the light and send over bluetooth
       ble.print("SL");
-    }
-
-
-  } else if (bt_input[0] == 'a') {    // arduino receives the activity selected and sends back recommended parameters
-    if (bt_input[1] == 'w') { // Working
-      ble.print("ot 22");
-      ble.print("oh 45");
-      //optimal
-    }
-
-    else if (bt_input[1] == 's') { // Sleeping
-      ble.print("ot 18");
-      ble.print("oh ");
-    }
-
-    else if (bt_input[1] == 'b') {  // Baby in the room
-      ble.print("ot ");
-      ble.print("oh ");
-    }
-
-    else if (bt_input[1] == 'e') { // Exercising
-      ble.print("ot ");
-      ble.print("oh ");
+      String nowL = String(bt_input).substring(3);
+      light = nowL.toInt();
+      lig(light);
     }
   }
 
-
-  if (number == 49) {
-    digitalWrite(LED, HIGH);
-    delay(5000);
-    digitalWrite(LED, LOW);
-    delay(1000);
-  }
-  delay(1000);
+  radiator();
+  LEDon(rad);
 }
+
 
 void radiator() {
 
   if (temp < optimal) {  // checks if it's below or above
-    //  blinkfast();
-    digitalWrite(LED, HIGH);
-    delay(300);
-    digitalWrite(LED, LOW);
-    delay(300);
-    digitalWrite(LED, HIGH);
-    delay(300);
-    digitalWrite(LED, LOW);
-    delay(300);
+    LEDon(true);
+    
+    for (int i = optimal - temp; i > 0; i--) {
+      temp++;
+      ble.print("ST "  + String(temp));
 
+      delay(2000);
 
-    for (int i = optimal; i > 0; i--) {
-      // make the LED blink until it reaches optimal
-      ble.print("ST "  );
     }
-    //if ( i == 0 ) {
-    digitalWrite(LED, LOW);
-    //}
+  } else {
+    LEDon(false);
   }
 }
 
+void lig(int colors) {
+  float r = 1.35;
+  float g = 1.49;
+  float b = 1.54;
 
-void LEDblink(int rate) {
-
+  strip.setBrightness(20);
+  strip.setPixelColor(0, 120 + r * colors, 209 - g * colors, 204 - b * colors);
+  strip.show();
 }
+
+
+void LEDon(bool on) {
+  if (on == true) {
+    digitalWrite(LED, HIGH);
+  } else {
+    digitalWrite(LED, LOW);
+  }
+}
+
 
 
 // Commands needed
